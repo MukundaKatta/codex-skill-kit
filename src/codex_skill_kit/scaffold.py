@@ -1,87 +1,97 @@
+"""Scaffold a new Codex skill directory with sensible defaults."""
+
 from __future__ import annotations
 
-import re
+import shutil
 from pathlib import Path
+from typing import Union
 
 
-VALID_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
-
-
-def create_skill(
+def scaffold_skill(
     name: str,
+    *,
     description: str,
-    output_dir: Path,
+    target_dir: Union[str, Path] = ".",
     force: bool = False,
 ) -> Path:
-    if not VALID_NAME.fullmatch(name):
-        raise ValueError("Skill names should be lowercase kebab-case, for example repo-doctor.")
+    """Create a new skill directory at ``<target_dir>/<name>``.
 
-    skill_path = output_dir / name
-    skill_path.mkdir(parents=True, exist_ok=True)
+    Returns the absolute :class:`Path` of the created directory. Raises
+    :class:`FileExistsError` if the directory already exists and ``force``
+    is ``False``.
+    """
+
+    if not name or not name.strip():
+        raise ValueError("Skill name must be a non-empty string.")
+
+    target = Path(target_dir)
+    skill_path = target / name
+
+    if skill_path.exists():
+        if not force:
+            raise FileExistsError(
+                f"Skill directory already exists: {skill_path}. Pass force=True to overwrite."
+            )
+        # Force-overwrite: remove the existing tree so the scaffold starts clean.
+        shutil.rmtree(skill_path)
+
     examples_path = skill_path / "examples"
-    examples_path.mkdir(exist_ok=True)
+    examples_path.mkdir(parents=True, exist_ok=False)
 
-    files = {
-        skill_path / "SKILL.md": _skill_md(name, description),
-        skill_path / "README.md": _readme_md(name, description),
-        examples_path / "basic.md": _example_md(name),
-    }
-
-    for path, content in files.items():
-        if path.exists() and not force:
-            continue
-        path.write_text(content, encoding="utf-8")
+    (skill_path / "SKILL.md").write_text(_skill_md(name, description), encoding="utf-8")
+    (skill_path / "README.md").write_text(_readme_md(name, description), encoding="utf-8")
+    (examples_path / "basic.md").write_text(_example_md(name), encoding="utf-8")
 
     return skill_path
 
 
+def _humanize(name: str) -> str:
+    """Convert a kebab- or snake-cased skill name to a human-readable title."""
+
+    cleaned = name.replace("_", " ").replace("-", " ")
+    parts = [part for part in cleaned.split() if part]
+    return " ".join(part[:1].upper() + part[1:] for part in parts) if parts else name
+
+
 def _skill_md(name: str, description: str) -> str:
-    title = name.replace("-", " ").title()
-    return f"""# {title}
-
-## Description
-
-{description}
-
-Use this skill when the user asks for workflows related to {name.replace("-", " ")}.
-
-## Workflow
-
-1. Clarify the user's goal and identify the smallest useful output.
-2. Inspect the relevant files, examples, or references before changing anything.
-3. Make focused edits or recommendations.
-4. Verify the result with the lightest reliable check.
-
-## Notes
-
-- Keep output concise and actionable.
-- Prefer existing project conventions over new abstractions.
-"""
+    title = _humanize(name)
+    return (
+        f"# {title}\n"
+        "\n"
+        f"{description}\n"
+        "\n"
+        "## When to use\n"
+        "\n"
+        f"Use this skill when the user asks for help related to {title.lower()}.\n"
+        "\n"
+        "## How it works\n"
+        "\n"
+        "1. Clarify the user goal and identify the smallest useful output.\n"
+        "2. Inspect the relevant files or examples before changing anything.\n"
+        "3. Make focused edits or recommendations.\n"
+        "4. Verify the result with the lightest reliable check.\n"
+        "\n"
+        "## Examples\n"
+        "\n"
+        "See [examples/basic.md](examples/basic.md).\n"
+    )
 
 
 def _readme_md(name: str, description: str) -> str:
-    title = name.replace("-", " ").title()
-    return f"""# {title}
-
-{description}
-
-## Use
-
-Place this directory in a Codex skills location, then ask Codex for work that matches the skill description.
-"""
+    title = _humanize(name)
+    return (
+        f"# {title}\n"
+        "\n"
+        f"{description}\n"
+        "\n"
+        f"Drop this directory into a Codex skills location, then ask Codex for work that matches the {title.lower()} description.\n"
+    )
 
 
 def _example_md(name: str) -> str:
-    return f"""# Basic Example
-
-User request:
-
-```text
-Use the {name} skill to help with this repo.
-```
-
-Expected behavior:
-
-Codex loads the skill, follows its workflow, and verifies the result before responding.
-"""
-
+    return (
+        "# Example\n"
+        "\n"
+        f"Input: ask Codex to use the {name} skill on a sample request.\n"
+        "Output: Codex follows the skill workflow and returns a focused result.\n"
+    )
