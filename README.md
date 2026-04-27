@@ -1,16 +1,23 @@
 # codex-skill-kit
 
-Small command-line tools for building Codex skills.
+[![CI](https://github.com/MukundaKatta/codex-skill-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/MukundaKatta/codex-skill-kit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/codex-skill-kit.svg)](https://pypi.org/project/codex-skill-kit/)
+[![Python](https://img.shields.io/pypi/pyversions/codex-skill-kit.svg)](https://pypi.org/project/codex-skill-kit/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`codex-skill-kit` helps you scaffold a skill directory and validate the files that make a skill easy for Codex to load, understand, and use.
+Small command-line tools for building Codex skills. `codex-skill-kit` scaffolds a fresh skill directory with the right shape, and validates skill files so they are easy for Codex to load and use.
 
-## Install for development
+## Install
 
 ```bash
-python -m pip install -e .
+pip install codex-skill-kit
 ```
 
-## Create a skill
+The package ships two console entry points: `codex-skill-kit` (long form) and `csk` (short).
+
+## Usage
+
+### Create a skill
 
 ```bash
 csk new repo-doctor --description "Inspect repositories for agent-ready project hygiene."
@@ -26,7 +33,7 @@ repo-doctor/
     basic.md
 ```
 
-## Validate a skill
+### Validate a skill
 
 ```bash
 csk validate repo-doctor
@@ -34,14 +41,31 @@ csk validate repo-doctor
 
 The validator checks for:
 
-- a `SKILL.md` file
+- a `SKILL.md` file at the skill root
 - a top-level Markdown heading
 - a concise trigger or usage sentence
 - a reasonable description length
 - references to missing local files
 - optional README and examples coverage
 
-### Validation rules
+`csk validate` exits `0` unless an error-severity issue is reported. With `--strict`, warnings also fail. Pass `--json` for machine-readable output (`{"ok": bool, "issues": [...]}`).
+
+## Use as a library
+
+```python
+from codex_skill_kit import validate_skill, scaffold_skill
+
+result = validate_skill("path/to/skill-dir")
+if not result.ok:
+    for issue in result.errors:
+        print(issue.code, issue.message)
+
+scaffold_skill("new-skill", description="What this skill does and when to use it.")
+```
+
+Exposed names: `scaffold_skill`, `validate_skill`, `ValidationResult`, `Issue`.
+
+## Validation rules
 
 | Code | Severity | Meaning |
 | --- | --- | --- |
@@ -54,9 +78,17 @@ The validator checks for:
 | `README_MISSING` | info | No `README.md` is present (recommended for shared skills). |
 | `EXAMPLES_MISSING` | info | The `examples/` directory is missing or empty. |
 
-`csk validate` exits 0 unless an error-severity issue is reported. With `--strict`, warnings also fail. Pass `--json` for machine-readable output (`{"ok": bool, "issues": [...]}`).
-
 ## Why this exists
 
 Codex skills are most useful when they are small, clear, and easy to inspect. This package makes that quality bar repeatable, so skill authors can catch rough edges before opening pull requests or sharing skills with a team.
 
+## Development
+
+```bash
+pip install -e '.[dev]'
+pytest
+```
+
+## License
+
+MIT
